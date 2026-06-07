@@ -50,7 +50,7 @@ export type SetupStatus = {
   };
 };
 
-const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || "/_backend").replace(/\/$/, "");
+const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || "/_backend").trim().split(/\s+/)[0].replace(/\/$/, "");
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const url = `${API_BASE}${path}`;
