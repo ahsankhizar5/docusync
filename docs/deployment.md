@@ -68,7 +68,11 @@ Set frontend environment variable:
 
 ```env
 NEXT_PUBLIC_API_BASE_URL=https://your-backend.vercel.app
+NEXT_PUBLIC_SUPABASE_URL=https://keumpxbhvlumvwnhcgce.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
 ```
+
+Supabase browser/server client helpers are available under `frontend/utils/supabase/`. Session-refresh middleware is staged as `frontend/middleware.ts.disabled`; rename it to `middleware.ts` when reviewer login/RBAC is implemented.
 
 ## GitHub Webhook
 

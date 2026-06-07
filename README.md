@@ -6,6 +6,7 @@ DocuSync is an LLM-assisted documentation synchronization system for AI Project 
 
 - `backend/`: FastAPI API, GitHub webhook receiver, LLM provider layer, Notion adapter, SQLAlchemy persistence, tests.
 - `frontend/`: Next.js review dashboard.
+- `frontend/utils/supabase/`: Supabase browser/server helpers for the upcoming auth and reviewer-session layer.
 - `config/module_mapping.json`: maps changed code paths to Notion documentation targets.
 - `docs/implementation_spec.md`: implementation and demo specification.
 
