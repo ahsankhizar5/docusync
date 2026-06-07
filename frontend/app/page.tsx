@@ -1,12 +1,13 @@
 "use client";
 
-import { ChevronDown, Code2, FileText, FilePlus2, GitPullRequest, Loader2, RefreshCw, Sparkles, Trash2, Workflow, X } from "lucide-react";
+import { Check, ChevronDown, Code2, FileText, FilePlus2, GitPullRequest, History, Loader2, RefreshCw, Send, Sparkles, Trash2, Workflow, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { SystemIntegrity, SystemIntegritySkeleton } from "../components/system-integrity";
 import { StatusPill } from "../components/status-pill";
-import { clearFailedJobs, createDemoJob, getJob, getSetupStatus, Job, listJobs, SetupStatus } from "../lib/api";
+import { approveJob, clearFailedJobs, createDemoJob, getJob, getSetupStatus, Job, listJobs, rejectJob, SetupStatus } from "../lib/api";
 
 type QueueAction = "refresh" | "demo" | "clear" | "toggle" | null;
+type ReviewAction = "approve" | "reject" | null;
 
 export default function HomePage() {
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -19,6 +20,10 @@ export default function HomePage() {
   const [expandedJob, setExpandedJob] = useState<Job | null>(null);
   const [drawerLoading, setDrawerLoading] = useState(false);
   const [drawerError, setDrawerError] = useState<string | null>(null);
+  const [draft, setDraft] = useState("");
+  const [reviewer, setReviewer] = useState("reviewer");
+  const [reviewComment, setReviewComment] = useState("");
+  const [reviewAction, setReviewAction] = useState<ReviewAction>(null);
 
   async function load(includeFailed = showFailed, action: QueueAction = "refresh") {
     setBusyAction(action);
@@ -83,10 +88,50 @@ export default function HomePage() {
     try {
       const loaded = await getJob(String(job.id));
       setExpandedJob(loaded);
+      setDraft(loaded.final_content || loaded.ai_patch || "");
+      setReviewComment("");
     } catch (err) {
       setDrawerError(err instanceof Error ? err.message : "Unable to load job details.");
     } finally {
       setDrawerLoading(false);
+    }
+  }
+
+  function replaceJob(updated: Job) {
+    setJobs((current) => current.map((job) => (job.id === updated.id ? { ...job, ...updated } : job)));
+    setExpandedJob(updated);
+    setDraft(updated.final_content || updated.ai_patch || draft);
+  }
+
+  async function approveExpandedJob() {
+    if (!expandedJob || !draft.trim() || reviewAction) return;
+    setReviewAction("approve");
+    setDrawerError(null);
+    try {
+      const updated = await approveJob(expandedJob.id, draft, reviewer, reviewComment || undefined);
+      replaceJob(updated);
+    } catch (err) {
+      setDrawerError(err instanceof Error ? err.message : "Unable to approve and publish this job.");
+    } finally {
+      setReviewAction(null);
+    }
+  }
+
+  async function rejectExpandedJob() {
+    if (!expandedJob || reviewAction) return;
+    if (!reviewComment.trim()) {
+      setDrawerError("Add a reviewer note before rejecting this draft.");
+      return;
+    }
+    setReviewAction("reject");
+    setDrawerError(null);
+    try {
+      const updated = await rejectJob(expandedJob.id, reviewer, reviewComment);
+      replaceJob(updated);
+    } catch (err) {
+      setDrawerError(err instanceof Error ? err.message : "Unable to reject this job.");
+    } finally {
+      setReviewAction(null);
     }
   }
 
@@ -217,19 +262,56 @@ export default function HomePage() {
                                 <h3>{expandedJob.ai_summary || "Draft is still processing."}</h3>
                                 <p>{expandedJob.reviewer_notes || "No reviewer note has been generated yet."}</p>
                               </div>
-                              <button className="button subtle drawer-close" onClick={() => toggleJobDrawer(job)} type="button" title="Close drawer">
-                                <X size={16} />
+                              <div className="drawer-status">
+                                <StatusPill status={expandedJob.status} />
+                                <button className="button subtle drawer-close" onClick={() => toggleJobDrawer(job)} type="button" title="Close drawer">
+                                  <X size={16} />
+                                </button>
+                              </div>
+                            </div>
+
+                            <div className="review-console">
+                              <input className="input reviewer-input" value={reviewer} onChange={(event) => setReviewer(event.target.value)} aria-label="Reviewer" />
+                              <input
+                                className="input review-note-input"
+                                value={reviewComment}
+                                onChange={(event) => setReviewComment(event.target.value)}
+                                placeholder="Reviewer note or rejection reason"
+                                aria-label="Reviewer note"
+                              />
+                              <button className="button primary" onClick={approveExpandedJob} disabled={!draft.trim() || Boolean(reviewAction)} type="button">
+                                {reviewAction === "approve" ? <Loader2 size={16} className="spin" /> : <Send size={16} />}
+                                {reviewAction === "approve" ? "Publishing" : "Approve"}
+                              </button>
+                              <button className="button danger" onClick={rejectExpandedJob} disabled={Boolean(reviewAction)} type="button">
+                                {reviewAction === "reject" ? <Loader2 size={16} className="spin" /> : <X size={16} />}
+                                {reviewAction === "reject" ? "Rejecting" : "Reject"}
                               </button>
                             </div>
 
                             <div className="drawer-grid">
-                              <section className="drawer-panel">
+                              <section className="drawer-panel drawer-panel-edit">
                                 <div className="drawer-panel-title"><FileText size={15} /> Proposed Markdown Patch</div>
-                                <pre>{expandedJob.ai_patch || "Patch has not been generated yet."}</pre>
+                                <textarea value={draft} onChange={(event) => setDraft(event.target.value)} />
                               </section>
                               <section className="drawer-panel">
                                 <div className="drawer-panel-title"><Code2 size={15} /> Git Diff Evidence</div>
                                 <pre>{expandedJob.diff || "Diff is not available for this job."}</pre>
+                              </section>
+                            </div>
+
+                            <div className="drawer-meta-grid">
+                              <section className="drawer-panel">
+                                <div className="drawer-panel-title"><Check size={15} /> Current Documentation</div>
+                                <pre>{expandedJob.current_docs || "Current Notion documentation has not been retrieved yet."}</pre>
+                              </section>
+                              <section className="drawer-panel">
+                                <div className="drawer-panel-title"><History size={15} /> Audit Trail</div>
+                                <pre>
+                                  {(expandedJob.audit_logs || [])
+                                    .map((log) => `${new Date(log.created_at).toLocaleString()} | ${log.action} | ${log.actor || ""} | ${log.comment || ""}`)
+                                    .join("\n") || "No audit entries yet."}
+                                </pre>
                               </section>
                             </div>
                           </>
