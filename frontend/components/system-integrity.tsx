@@ -47,7 +47,7 @@ export function SystemIntegrity({ setup }: SystemIntegrityProps) {
             </span>
             <div>
               <strong>{check.label}</strong>
-              <span>{check.detail}</span>
+              <span title={check.detail}>{check.detail}</span>
             </div>
           </div>
         ))}

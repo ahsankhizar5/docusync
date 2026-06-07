@@ -1,11 +1,10 @@
 "use client";
 
-import Link from "next/link";
-import { FilePlus2, GitPullRequest, Loader2, RefreshCw, Sparkles, Trash2, Workflow } from "lucide-react";
+import { ChevronDown, Code2, FileText, FilePlus2, GitPullRequest, Loader2, RefreshCw, Sparkles, Trash2, Workflow, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { SystemIntegrity, SystemIntegritySkeleton } from "../components/system-integrity";
 import { StatusPill } from "../components/status-pill";
-import { clearFailedJobs, createDemoJob, getSetupStatus, Job, listJobs, SetupStatus } from "../lib/api";
+import { clearFailedJobs, createDemoJob, getJob, getSetupStatus, Job, listJobs, SetupStatus } from "../lib/api";
 
 type QueueAction = "refresh" | "demo" | "clear" | "toggle" | null;
 
@@ -16,6 +15,10 @@ export default function HomePage() {
   const [showFailed, setShowFailed] = useState(false);
   const [busyAction, setBusyAction] = useState<QueueAction>(null);
   const [error, setError] = useState<string | null>(null);
+  const [expandedJobId, setExpandedJobId] = useState<number | null>(null);
+  const [expandedJob, setExpandedJob] = useState<Job | null>(null);
+  const [drawerLoading, setDrawerLoading] = useState(false);
+  const [drawerError, setDrawerError] = useState<string | null>(null);
 
   async function load(includeFailed = showFailed, action: QueueAction = "refresh") {
     setBusyAction(action);
@@ -63,6 +66,28 @@ export default function HomePage() {
     const next = !showFailed;
     setShowFailed(next);
     load(next, "toggle");
+  }
+
+  async function toggleJobDrawer(job: Job) {
+    if (expandedJobId === job.id) {
+      setExpandedJobId(null);
+      setExpandedJob(null);
+      setDrawerError(null);
+      return;
+    }
+
+    setExpandedJobId(job.id);
+    setExpandedJob(null);
+    setDrawerError(null);
+    setDrawerLoading(true);
+    try {
+      const loaded = await getJob(String(job.id));
+      setExpandedJob(loaded);
+    } catch (err) {
+      setDrawerError(err instanceof Error ? err.message : "Unable to load job details.");
+    } finally {
+      setDrawerLoading(false);
+    }
   }
 
   useEffect(() => {
@@ -153,15 +178,65 @@ export default function HomePage() {
                   <span>Created</span>
                 </div>
                 {jobs.map((job) => (
-                  <Link href={`/jobs/${job.id}`} className="job-row" key={job.id}>
-                    <div className="job-title">
-                      <strong>{job.pr_title}</strong>
-                      <div className="muted">{job.repo_full_name} #{job.pr_number}</div>
-                    </div>
-                    <StatusPill status={job.status} />
-                    <span className="muted">{job.mapped_module || "Mapping pending"}</span>
-                    <span className="muted">{new Date(job.created_at).toLocaleDateString()}</span>
-                  </Link>
+                  <div className="job-stream-item" key={job.id}>
+                    <button
+                      className={`job-row job-trigger ${expandedJobId === job.id ? "expanded" : ""}`}
+                      onClick={() => toggleJobDrawer(job)}
+                      type="button"
+                    >
+                      <div className="job-title">
+                        <strong>{job.pr_title}</strong>
+                        <div className="muted">{job.repo_full_name} #{job.pr_number}</div>
+                      </div>
+                      <StatusPill status={job.status} />
+                      <span className="muted">{job.mapped_module || "Mapping pending"}</span>
+                      <span className="muted job-date">
+                        {new Date(job.created_at).toLocaleDateString()}
+                        <ChevronDown size={16} />
+                      </span>
+                    </button>
+
+                    {expandedJobId === job.id && (
+                      <div className="job-drawer">
+                        {drawerLoading && (
+                          <div className="drawer-loading">
+                            <Loader2 size={18} className="spin" />
+                            Loading Gemini analysis and pull request evidence...
+                          </div>
+                        )}
+
+                        {drawerError && (
+                          <div className="notice danger-notice">{drawerError}</div>
+                        )}
+
+                        {expandedJob && (
+                          <>
+                            <div className="drawer-head">
+                              <div>
+                                <div className="eyebrow"><Sparkles size={13} /> Gemini patch brief</div>
+                                <h3>{expandedJob.ai_summary || "Draft is still processing."}</h3>
+                                <p>{expandedJob.reviewer_notes || "No reviewer note has been generated yet."}</p>
+                              </div>
+                              <button className="button subtle drawer-close" onClick={() => toggleJobDrawer(job)} type="button" title="Close drawer">
+                                <X size={16} />
+                              </button>
+                            </div>
+
+                            <div className="drawer-grid">
+                              <section className="drawer-panel">
+                                <div className="drawer-panel-title"><FileText size={15} /> Proposed Markdown Patch</div>
+                                <pre>{expandedJob.ai_patch || "Patch has not been generated yet."}</pre>
+                              </section>
+                              <section className="drawer-panel">
+                                <div className="drawer-panel-title"><Code2 size={15} /> Git Diff Evidence</div>
+                                <pre>{expandedJob.diff || "Diff is not available for this job."}</pre>
+                              </section>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 ))}
               </div>
             )}
