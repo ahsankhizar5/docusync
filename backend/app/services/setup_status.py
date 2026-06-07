@@ -29,6 +29,12 @@ def get_setup_status(settings: Settings) -> dict:
             "detail": "Set in backend environment" if settings.notion_api_key else "Missing NOTION_API_KEY",
         },
         {
+            "id": "notion_target",
+            "label": "Notion docs target",
+            "configured": bool(settings.notion_database_or_page_id),
+            "detail": "Set in backend environment" if settings.notion_database_or_page_id else "Missing NOTION_DATABASE_OR_PAGE_ID",
+        },
+        {
             "id": "github_secret",
             "label": "GitHub webhook secret",
             "configured": bool(settings.github_webhook_secret and settings.github_webhook_secret != "dev-secret" and "replace" not in settings.github_webhook_secret),

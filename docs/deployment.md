@@ -39,6 +39,15 @@ cd backend
 
 This creates `jobs` and `audit_logs`.
 
+## Vercel Multi-Service Setup
+
+The repository root contains `vercel.json` with two services:
+
+- `frontend` at route prefix `/`
+- `backend` at route prefix `/_backend`
+
+This file is required by Vercel when deploying both services from one repository. Without it, the Deploy button stays disabled.
+
 ## Backend: Vercel
 
 Create a Vercel project from the GitHub repository:
@@ -53,6 +62,7 @@ DATABASE_URL=
 DIRECT_URL=
 GEMINI_API_KEY=
 NOTION_API_KEY=
+NOTION_DATABASE_OR_PAGE_ID=https://app.notion.com/p/DocuSync-Project-Docs-378e7c1d9c04806a9a33f596abdfb006
 GITHUB_WEBHOOK_SECRET=
 LLM_PROVIDER=gemini
 GEMINI_MODEL=gemini-2.5-flash
@@ -72,7 +82,7 @@ Create a second Vercel project from the same GitHub repository:
 Set frontend environment variable:
 
 ```env
-NEXT_PUBLIC_API_BASE_URL=https://your-backend.vercel.app
+NEXT_PUBLIC_API_BASE_URL=https://your-app.vercel.app/_backend
 NEXT_PUBLIC_SUPABASE_URL=https://keumpxbhvlumvwnhcgce.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
 ```
@@ -84,7 +94,7 @@ Supabase browser/server client helpers are available under `frontend/utils/supab
 Create a repository webhook:
 
 ```text
-https://your-backend.vercel.app/webhooks/github
+https://your-app.vercel.app/_backend/webhooks/github
 ```
 
 - Content type: `application/json`
