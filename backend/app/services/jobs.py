@@ -1,7 +1,7 @@
 import json
 from datetime import datetime, timezone
 
-from sqlalchemy import desc, insert, select, update
+from sqlalchemy import delete, desc, insert, select, update
 
 from ..database import audit_logs, get_engine, jobs
 from ..settings import get_settings
@@ -82,10 +82,37 @@ async def process_job(job_id: int) -> None:
             conn.execute(insert(audit_logs).values(job_id=job_id, action="failed", actor="docusync", comment=str(exc)))
 
 
-def list_jobs() -> list[dict]:
+JOB_SUMMARY_COLUMNS = [
+    jobs.c.id,
+    jobs.c.status,
+    jobs.c.repo_full_name,
+    jobs.c.pr_number,
+    jobs.c.pr_title,
+    jobs.c.pr_url,
+    jobs.c.merged_by,
+    jobs.c.mapped_module,
+    jobs.c.ai_summary,
+    jobs.c.ai_confidence,
+    jobs.c.error,
+    jobs.c.created_at,
+    jobs.c.updated_at,
+    jobs.c.published_at,
+]
+
+
+def list_jobs(include_failed: bool = False, limit: int = 50) -> list[dict]:
     with get_engine().begin() as conn:
-        rows = conn.execute(select(jobs).order_by(desc(jobs.c.created_at))).mappings().fetchall()
+        query = select(*JOB_SUMMARY_COLUMNS).order_by(desc(jobs.c.created_at), desc(jobs.c.id)).limit(limit)
+        if not include_failed:
+            query = query.where(jobs.c.status != "failed")
+        rows = conn.execute(query).mappings().fetchall()
         return [normalize_job(dict(row)) for row in rows]
+
+
+def clear_failed_jobs() -> int:
+    with get_engine().begin() as conn:
+        result = conn.execute(delete(jobs).where(jobs.c.status == "failed"))
+        return int(result.rowcount or 0)
 
 
 def get_job(job_id: int) -> dict | None:

@@ -16,8 +16,8 @@ export type Job = {
   pr_url?: string;
   pr_body?: string;
   merged_by?: string;
-  changed_files: string[];
-  diff: string;
+  changed_files?: string[];
+  diff?: string;
   mapped_module?: string;
   notion_target_id?: string;
   current_docs?: string;
@@ -86,8 +86,8 @@ export async function checkApiHealth(): Promise<boolean> {
   }
 }
 
-export function listJobs(): Promise<Job[]> {
-  return request<Job[]>("/api/jobs");
+export function listJobs(includeFailed = false): Promise<Job[]> {
+  return request<Job[]>(`/api/jobs?include_failed=${includeFailed ? "true" : "false"}&limit=50`);
 }
 
 export function getSetupStatus(): Promise<SetupStatus> {
@@ -100,6 +100,10 @@ export function getJob(id: string): Promise<Job> {
 
 export function createDemoJob(): Promise<{ accepted: boolean; job_id: number }> {
   return request("/api/demo/jobs", { method: "POST", body: JSON.stringify({}) });
+}
+
+export function clearFailedJobs(): Promise<{ deleted: number }> {
+  return request("/api/jobs/failed", { method: "DELETE" });
 }
 
 export function approveJob(id: number, finalContent: string, reviewer: string, comment?: string): Promise<Job> {

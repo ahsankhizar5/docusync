@@ -1,10 +1,10 @@
-from fastapi import BackgroundTasks, FastAPI, Header, HTTPException, Request
+from fastapi import BackgroundTasks, FastAPI, Header, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from .database import init_db
 from .models import DemoJobRequest, ReviewApproveRequest, ReviewRejectRequest
 from .services.github import PullRequestEvent, is_merged_pull_request, parse_pull_request_event, verify_signature
-from .services.jobs import approve_job, create_job, get_job, list_jobs, process_job, reject_job
+from .services.jobs import approve_job, clear_failed_jobs, create_job, get_job, list_jobs, process_job, reject_job
 from .services.setup_status import get_setup_status
 from .settings import get_settings
 
@@ -71,8 +71,17 @@ async def demo_job(request: DemoJobRequest, background_tasks: BackgroundTasks) -
 
 
 @app.get("/api/jobs")
-def api_list_jobs() -> list[dict]:
-    return list_jobs()
+def api_list_jobs(
+    include_failed: bool = Query(default=False),
+    limit: int = Query(default=50, ge=1, le=100),
+) -> list[dict]:
+    return list_jobs(include_failed=include_failed, limit=limit)
+
+
+@app.delete("/api/jobs/failed")
+def api_clear_failed_jobs() -> dict:
+    deleted = clear_failed_jobs()
+    return {"deleted": deleted}
 
 
 @app.get("/api/jobs/{job_id}")

@@ -1,22 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { CheckCircle2, CircleAlert, FilePlus2, RefreshCw, Workflow } from "lucide-react";
+import { CheckCircle2, CircleAlert, FilePlus2, RefreshCw, Trash2, Workflow } from "lucide-react";
 import { useEffect, useState } from "react";
-import { createDemoJob, getSetupStatus, Job, listJobs, SetupStatus } from "../lib/api";
 import { StatusPill } from "../components/status-pill";
+import { clearFailedJobs, createDemoJob, getSetupStatus, Job, listJobs, SetupStatus } from "../lib/api";
 
 export default function HomePage() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [setup, setSetup] = useState<SetupStatus | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showFailed, setShowFailed] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function load() {
+  async function load(includeFailed = showFailed) {
     setLoading(true);
     setError(null);
     try {
-      const [loadedSetup, loadedJobs] = await Promise.all([getSetupStatus(), listJobs()]);
+      const [loadedSetup, loadedJobs] = await Promise.all([getSetupStatus(), listJobs(includeFailed)]);
       setSetup(loadedSetup);
       setJobs(loadedJobs);
     } catch (err) {
@@ -28,11 +29,18 @@ export default function HomePage() {
 
   async function seedDemo() {
     await createDemoJob();
-    setTimeout(load, 700);
+    setTimeout(() => load(showFailed), 700);
+  }
+
+  async function clearFailures() {
+    setError(null);
+    await clearFailedJobs();
+    setShowFailed(false);
+    await load(false);
   }
 
   useEffect(() => {
-    load();
+    load(false);
   }, []);
 
   return (
@@ -49,10 +57,22 @@ export default function HomePage() {
         <div className="toolbar">
           <div>
             <strong>Review Queue</strong>
-            <div className="muted">Approve, edit, or reject AI-generated documentation updates.</div>
+            <div className="muted">Approve, edit, or reject AI-generated documentation updates from merged GitHub pull requests.</div>
           </div>
           <div className="actions">
-            <button className="button" onClick={load} title="Refresh jobs"><RefreshCw size={17} /> Refresh</button>
+            <button className="button" onClick={() => load(showFailed)} title="Refresh jobs"><RefreshCw size={17} /> Refresh</button>
+            <button className="button danger" onClick={clearFailures} title="Remove failed history"><Trash2 size={17} /> Clear failed</button>
+            <button
+              className="button"
+              onClick={() => {
+                const next = !showFailed;
+                setShowFailed(next);
+                load(next);
+              }}
+              title="Toggle failed jobs"
+            >
+              {showFailed ? "Hide failed" : "Show failed"}
+            </button>
             <button className="button" onClick={seedDemo} title="Development-only test job"><FilePlus2 size={17} /> Dev test job</button>
           </div>
         </div>
@@ -62,7 +82,10 @@ export default function HomePage() {
             <div>
               <strong>Production Setup</strong>
               <div className="muted">
-                Frontend: {setup.deployment.frontend} · Backend: {setup.deployment.backend} · Repo: {setup.deployment.github_repo}
+                Frontend: {setup.deployment.frontend} | Backend: {setup.deployment.backend} | Repo: {setup.deployment.github_repo}
+              </div>
+              <div className="muted setup-note">
+                Live trigger: open a pull request, merge it, and GitHub will send the merged PR event. Creating a branch alone will not create a review job.
               </div>
             </div>
             <div className="setup-grid">

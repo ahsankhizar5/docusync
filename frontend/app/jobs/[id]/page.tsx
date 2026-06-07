@@ -80,7 +80,7 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
           </div>
           <div className="meta-item">
             <div className="muted">Changed files</div>
-            <strong>{job.changed_files.length}</strong>
+            <strong>{job.changed_files?.length || 0}</strong>
           </div>
           <div className="meta-item">
             <div className="muted">Notion target</div>
@@ -103,7 +103,7 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
           <section className="panel">
             <h3>Pull Request Evidence</h3>
             <p className="muted">{job.pr_body || "No PR description provided."}</p>
-            <div className="pre">{job.diff}</div>
+            <div className="pre">{job.diff || "Diff has not been loaded yet."}</div>
           </section>
           <section className="panel">
             <h3>Review Notes</h3>

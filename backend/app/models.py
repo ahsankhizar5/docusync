@@ -17,8 +17,8 @@ class DemoJobRequest(BaseModel):
     pr_number: int = 1
     pr_title: str = "Add password reset expiry policy"
     pr_body: str = "Implements 15-minute reset token expiry and invalidates used tokens."
-    changed_files: list[str] = Field(default_factory=lambda: ["src/auth/reset_password.py"])
-    diff: str = """diff --git a/src/auth/reset_password.py b/src/auth/reset_password.py
+    changed_files: list[str] = Field(default_factory=lambda: ["backend/app/services/auth.py"])
+    diff: str = """diff --git a/backend/app/services/auth.py b/backend/app/services/auth.py
 @@
 - token = create_reset_token(user)
 + token = create_reset_token(user, expires_in_minutes=15)
