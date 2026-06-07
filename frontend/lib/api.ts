@@ -50,22 +50,40 @@ export type SetupStatus = {
   };
 };
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || "/_backend").replace(/\/$/, "");
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE}${path}`, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...(init?.headers || {})
-    },
-    cache: "no-store"
-  });
+  const url = `${API_BASE}${path}`;
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      ...init,
+      headers: {
+        "Content-Type": "application/json",
+        ...(init?.headers || {})
+      },
+      cache: "no-store"
+    });
+  } catch (error) {
+    throw new Error(`Unable to reach DocuSync API at ${url}. Check NEXT_PUBLIC_API_BASE_URL and backend deployment.`);
+  }
+
   if (!response.ok) {
     const detail = await response.text();
-    throw new Error(detail || `Request failed with ${response.status}`);
+    throw new Error(detail || `Request to ${url} failed with ${response.status}`);
   }
   return response.json();
+}
+
+export async function checkApiHealth(): Promise<boolean> {
+  try {
+    const response = await fetch(`${API_BASE}/health`, {
+      cache: "no-store"
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
 }
 
 export function listJobs(): Promise<Job[]> {

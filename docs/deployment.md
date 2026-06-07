@@ -72,6 +72,13 @@ CORS_ORIGINS=https://your-frontend.vercel.app
 
 The backend Vercel entrypoint is `backend/api/index.py`.
 
+After deployment, verify backend routing in the browser:
+
+```text
+https://your-app.vercel.app/_backend/health
+https://your-app.vercel.app/_backend/api/setup/status
+```
+
 ## Frontend: Vercel
 
 Create a second Vercel project from the same GitHub repository:
@@ -86,6 +93,8 @@ NEXT_PUBLIC_API_BASE_URL=https://your-app.vercel.app/_backend
 NEXT_PUBLIC_SUPABASE_URL=https://keumpxbhvlumvwnhcgce.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
 ```
+
+If `NEXT_PUBLIC_API_BASE_URL` is not set, the dashboard defaults to the same deployment at `/_backend`.
 
 Supabase browser/server client helpers are available under `frontend/utils/supabase/`. Session-refresh middleware is staged as `frontend/middleware.ts.disabled`; rename it to `middleware.ts` when reviewer login/RBAC is implemented.
 
