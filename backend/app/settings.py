@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     notion_api_key: str | None = None
     notion_version: str = "2022-06-28"
     notion_database_or_page_id: str | None = None
-    module_mapping_path: str = "../config/module_mapping.json"
+    module_mapping_path: str = "config/module_mapping.json"
     cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8-sig", extra="ignore")

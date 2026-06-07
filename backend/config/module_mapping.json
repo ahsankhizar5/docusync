@@ -1,0 +1,22 @@
+{
+  "modules": [
+    {
+      "module": "Backend API",
+      "path_prefixes": ["docusync/backend/", "backend/"],
+      "notion_target_id": "https://app.notion.com/p/Backend-API-Docs-378e7c1d9c0480f0b8fbc2560b6b0f96",
+      "fallback_docs": "# Backend API Docs\n\nThis page documents the FastAPI service, GitHub webhook receiver, LLM processing pipeline, Notion integration, review APIs, deployment configuration, and operational behavior."
+    },
+    {
+      "module": "Frontend Dashboard",
+      "path_prefixes": ["docusync/frontend/", "frontend/"],
+      "notion_target_id": "https://app.notion.com/p/Frontend-Dashboard-Docs-378e7c1d9c04808bba41c83ae277ae91",
+      "fallback_docs": "# Frontend Dashboard Docs\n\nThis page documents the Next.js review dashboard, production setup panel, review queue, job detail view, approval flow, rejection flow, and Vercel deployment configuration."
+    },
+    {
+      "module": "General Config and Project Docs",
+      "path_prefixes": ["docusync/config/", "docusync/docs/", "config/", "docs/", "docusync/render.yaml", "render.yaml", "docusync/README.md", "README.md"],
+      "notion_target_id": "https://app.notion.com/p/DocuSync-Project-Docs-378e7c1d9c04806a9a33f596abdfb006",
+      "fallback_docs": "# DocuSync Project Docs\n\nThis page documents project-level configuration, module mapping, deployment guides, onboarding material, production checklist, and research-project documentation."
+    }
+  ]
+}

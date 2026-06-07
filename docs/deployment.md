@@ -66,7 +66,7 @@ NOTION_DATABASE_OR_PAGE_ID=https://app.notion.com/p/DocuSync-Project-Docs-378e7c
 GITHUB_WEBHOOK_SECRET=
 LLM_PROVIDER=gemini
 GEMINI_MODEL=gemini-2.5-flash
-MODULE_MAPPING_PATH=../config/module_mapping.json
+MODULE_MAPPING_PATH=config/module_mapping.json
 CORS_ORIGINS=https://your-frontend.vercel.app
 ```
 
