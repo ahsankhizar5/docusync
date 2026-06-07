@@ -72,7 +72,7 @@ Use when your organization prefers Claude or wants cloud-provider-managed access
 
 ## Production Upgrade Checklist
 
-- Replace SQLite with PostgreSQL.
+- Use Supabase PostgreSQL through `DATABASE_URL`.
 - Replace in-process background tasks with a worker queue such as Celery/RQ plus Redis.
 - Add login and role-based access control for reviewers.
 - Add organization/project/workspace separation.
@@ -97,5 +97,5 @@ Use when your organization prefers Claude or wants cloud-provider-managed access
 6. Test one real merged pull request.
 7. Upgrade storage and worker queue.
 8. Add reviewer login and enterprise dashboard features.
-9. Deploy staging.
+9. Deploy frontend and backend as separate Vercel projects.
 10. Run evaluation scenarios and write the paper results section.

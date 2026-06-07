@@ -6,6 +6,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     app_name: str = "DocuSync"
+    database_url: str | None = None
     database_path: str = "docusync.db"
     github_webhook_secret: str = "dev-secret"
     github_token: str | None = None

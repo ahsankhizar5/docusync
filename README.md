@@ -4,7 +4,7 @@ DocuSync is an LLM-assisted documentation synchronization system for AI Project 
 
 ## Project Layout
 
-- `backend/`: FastAPI API, GitHub webhook receiver, LLM provider layer, Notion adapter, SQLite storage, tests.
+- `backend/`: FastAPI API, GitHub webhook receiver, LLM provider layer, Notion adapter, SQLAlchemy persistence, tests.
 - `frontend/`: Next.js review dashboard.
 - `config/module_mapping.json`: maps changed code paths to Notion documentation targets.
 - `docs/implementation_spec.md`: implementation and demo specification.
@@ -31,7 +31,7 @@ Copy-Item .env.local.example .env.local
 npm run dev
 ```
 
-Open `http://localhost:3000`, create a demo job, review the AI draft, then approve or reject it. With `LLM_PROVIDER=mock` and demo Notion targets, no external credentials are required. For the final full-integration demo, set real GitHub, OpenAI, and Notion credentials in `backend/.env`.
+Open `http://localhost:3000`, create a dev test job, review the AI draft, then approve or reject it. For production, set `DATABASE_URL`, Gemini, GitHub, and Notion credentials in `backend/.env` or Vercel environment variables.
 
 ## GitHub Webhook
 
@@ -53,4 +53,4 @@ Before adding real keys, read `docs/production_onboarding.md`. It explains what 
 
 ## Deployment
 
-The planned production deployment is Vercel for the Next.js dashboard and Render for the FastAPI backend. See `docs/deployment.md`.
+The planned production deployment is Vercel for both the Next.js dashboard and FastAPI backend, with Supabase PostgreSQL for persistence. See `docs/deployment.md`.

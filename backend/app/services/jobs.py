@@ -1,7 +1,9 @@
 import json
 from datetime import datetime, timezone
 
-from ..database import connect, row_to_dict
+from sqlalchemy import desc, insert, select, update
+
+from ..database import audit_logs, get_engine, jobs
 from ..settings import get_settings
 from .github import PullRequestEvent
 from .llm import LLMClient
@@ -9,34 +11,35 @@ from .mapping import load_mappings, select_mapping
 from .notion import NotionClient
 
 
-def now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+def now_utc() -> datetime:
+    return datetime.now(timezone.utc)
 
 
 def create_job(event: PullRequestEvent) -> int:
-    with connect() as conn:
-        cursor = conn.execute(
-            """
-            INSERT INTO jobs (
-                status, repo_full_name, pr_number, pr_title, pr_url, pr_body, merged_by,
-                changed_files, diff, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                "queued",
-                event.repo_full_name,
-                event.pr_number,
-                event.pr_title,
-                event.pr_url,
-                event.pr_body,
-                event.merged_by,
-                json.dumps(event.changed_files),
-                event.diff,
-                now_iso(),
-            ),
+    with get_engine().begin() as conn:
+        result = conn.execute(
+            insert(jobs).values(
+                status="queued",
+                repo_full_name=event.repo_full_name,
+                pr_number=event.pr_number,
+                pr_title=event.pr_title,
+                pr_url=event.pr_url,
+                pr_body=event.pr_body,
+                merged_by=event.merged_by,
+                changed_files=json.dumps(event.changed_files),
+                diff=event.diff,
+                updated_at=now_utc(),
+            )
         )
-        job_id = int(cursor.lastrowid)
-        conn.execute("INSERT INTO audit_logs (job_id, action, actor, comment) VALUES (?, ?, ?, ?)", (job_id, "queued", "github", "Webhook event accepted."))
+        job_id = int(result.inserted_primary_key[0])
+        conn.execute(
+            insert(audit_logs).values(
+                job_id=job_id,
+                action="queued",
+                actor="github",
+                comment="Webhook event accepted.",
+            )
+        )
         return job_id
 
 
@@ -56,46 +59,44 @@ async def process_job(job_id: int) -> None:
         notion = NotionClient(settings)
         current_docs = await notion.retrieve_markdown(mapping.notion_target_id, mapping.fallback_docs)
         draft = await LLMClient(settings).generate(current_docs, job["pr_title"], job["pr_body"] or "", job["diff"])
-        with connect() as conn:
+        with get_engine().begin() as conn:
             conn.execute(
-                """
-                UPDATE jobs SET status=?, mapped_module=?, notion_target_id=?, current_docs=?,
-                    ai_summary=?, ai_patch=?, ai_confidence=?, reviewer_notes=?, updated_at=?
-                WHERE id=?
-                """,
-                (
-                    "awaiting_review",
-                    mapping.module,
-                    mapping.notion_target_id,
-                    current_docs,
-                    draft.summary,
-                    draft.patch,
-                    draft.confidence,
-                    draft.reviewer_notes,
-                    now_iso(),
-                    job_id,
-                ),
+                update(jobs)
+                .where(jobs.c.id == job_id)
+                .values(
+                    status="awaiting_review",
+                    mapped_module=mapping.module,
+                    notion_target_id=mapping.notion_target_id,
+                    current_docs=current_docs,
+                    ai_summary=draft.summary,
+                    ai_patch=draft.patch,
+                    ai_confidence=draft.confidence,
+                    reviewer_notes=draft.reviewer_notes,
+                    updated_at=now_utc(),
+                )
             )
-            conn.execute("INSERT INTO audit_logs (job_id, action, actor, comment) VALUES (?, ?, ?, ?)", (job_id, "drafted", "docusync", draft.summary))
+            conn.execute(insert(audit_logs).values(job_id=job_id, action="drafted", actor="docusync", comment=draft.summary))
     except Exception as exc:
-        with connect() as conn:
-            conn.execute("UPDATE jobs SET status=?, error=?, updated_at=? WHERE id=?", ("failed", str(exc), now_iso(), job_id))
-            conn.execute("INSERT INTO audit_logs (job_id, action, actor, comment) VALUES (?, ?, ?, ?)", (job_id, "failed", "docusync", str(exc)))
+        with get_engine().begin() as conn:
+            conn.execute(update(jobs).where(jobs.c.id == job_id).values(status="failed", error=str(exc), updated_at=now_utc()))
+            conn.execute(insert(audit_logs).values(job_id=job_id, action="failed", actor="docusync", comment=str(exc)))
 
 
 def list_jobs() -> list[dict]:
-    with connect() as conn:
-        rows = conn.execute("SELECT * FROM jobs ORDER BY created_at DESC").fetchall()
+    with get_engine().begin() as conn:
+        rows = conn.execute(select(jobs).order_by(desc(jobs.c.created_at))).mappings().fetchall()
         return [normalize_job(dict(row)) for row in rows]
 
 
 def get_job(job_id: int) -> dict | None:
-    with connect() as conn:
-        row = conn.execute("SELECT * FROM jobs WHERE id=?", (job_id,)).fetchone()
-        job = row_to_dict(row)
+    with get_engine().begin() as conn:
+        row = conn.execute(select(jobs).where(jobs.c.id == job_id)).mappings().fetchone()
+        job = dict(row) if row is not None else None
         if not job:
             return None
-        logs = conn.execute("SELECT * FROM audit_logs WHERE job_id=? ORDER BY created_at ASC", (job_id,)).fetchall()
+        logs = conn.execute(
+            select(audit_logs).where(audit_logs.c.job_id == job_id).order_by(audit_logs.c.created_at.asc())
+        ).mappings().fetchall()
         job["audit_logs"] = [dict(log) for log in logs]
         return normalize_job(job)
 
@@ -108,12 +109,13 @@ async def approve_job(job_id: int, final_content: str, reviewer: str, comment: s
     if not target_id:
         raise ValueError("Job has no Notion target.")
     await NotionClient(get_settings()).publish_markdown(target_id, final_content)
-    with connect() as conn:
+    with get_engine().begin() as conn:
         conn.execute(
-            "UPDATE jobs SET status=?, final_content=?, published_at=?, updated_at=? WHERE id=?",
-            ("published", final_content, now_iso(), now_iso(), job_id),
+            update(jobs)
+            .where(jobs.c.id == job_id)
+            .values(status="published", final_content=final_content, published_at=now_utc(), updated_at=now_utc())
         )
-        conn.execute("INSERT INTO audit_logs (job_id, action, actor, comment) VALUES (?, ?, ?, ?)", (job_id, "approved", reviewer, comment or "Approved and published."))
+        conn.execute(insert(audit_logs).values(job_id=job_id, action="approved", actor=reviewer, comment=comment or "Approved and published."))
     return get_job(job_id) or {}
 
 
@@ -121,9 +123,9 @@ def reject_job(job_id: int, reviewer: str, comment: str) -> dict:
     job = get_job(job_id)
     if not job:
         raise ValueError("Job not found.")
-    with connect() as conn:
-        conn.execute("UPDATE jobs SET status=?, updated_at=? WHERE id=?", ("rejected", now_iso(), job_id))
-        conn.execute("INSERT INTO audit_logs (job_id, action, actor, comment) VALUES (?, ?, ?, ?)", (job_id, "rejected", reviewer, comment))
+    with get_engine().begin() as conn:
+        conn.execute(update(jobs).where(jobs.c.id == job_id).values(status="rejected", updated_at=now_utc()))
+        conn.execute(insert(audit_logs).values(job_id=job_id, action="rejected", actor=reviewer, comment=comment))
     return get_job(job_id) or {}
 
 

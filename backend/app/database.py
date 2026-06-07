@@ -1,71 +1,101 @@
-import sqlite3
-from contextlib import contextmanager
 from pathlib import Path
-from typing import Iterator
+
+from sqlalchemy import (
+    Column,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    MetaData,
+    String,
+    Table,
+    Text,
+    create_engine,
+    func,
+)
+from sqlalchemy.engine import Engine
 
 from .settings import get_settings
 
 
-SCHEMA = """
-CREATE TABLE IF NOT EXISTS jobs (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    status TEXT NOT NULL,
-    repo_full_name TEXT NOT NULL,
-    pr_number INTEGER NOT NULL,
-    pr_title TEXT NOT NULL,
-    pr_url TEXT,
-    pr_body TEXT,
-    merged_by TEXT,
-    changed_files TEXT NOT NULL,
-    diff TEXT NOT NULL,
-    mapped_module TEXT,
-    notion_target_id TEXT,
-    current_docs TEXT,
-    ai_summary TEXT,
-    ai_patch TEXT,
-    ai_confidence REAL,
-    reviewer_notes TEXT,
-    final_content TEXT,
-    error TEXT,
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    published_at TEXT
-);
+metadata = MetaData()
 
-CREATE TABLE IF NOT EXISTS audit_logs (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    job_id INTEGER NOT NULL,
-    action TEXT NOT NULL,
-    actor TEXT,
-    comment TEXT,
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY(job_id) REFERENCES jobs(id)
-);
-"""
+jobs = Table(
+    "jobs",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("status", String(40), nullable=False),
+    Column("repo_full_name", String(255), nullable=False),
+    Column("pr_number", Integer, nullable=False),
+    Column("pr_title", Text, nullable=False),
+    Column("pr_url", Text),
+    Column("pr_body", Text),
+    Column("merged_by", String(255)),
+    Column("changed_files", Text, nullable=False),
+    Column("diff", Text, nullable=False),
+    Column("mapped_module", String(255)),
+    Column("notion_target_id", Text),
+    Column("current_docs", Text),
+    Column("ai_summary", Text),
+    Column("ai_patch", Text),
+    Column("ai_confidence", Float),
+    Column("reviewer_notes", Text),
+    Column("final_content", Text),
+    Column("error", Text),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Column("updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Column("published_at", DateTime(timezone=True)),
+)
+
+audit_logs = Table(
+    "audit_logs",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("job_id", Integer, ForeignKey("jobs.id", ondelete="CASCADE"), nullable=False),
+    Column("action", String(80), nullable=False),
+    Column("actor", String(255)),
+    Column("comment", Text),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+)
+
+_engine: Engine | None = None
+_schema_ready = False
 
 
-def db_path() -> Path:
-    return Path(get_settings().database_path).resolve()
+def database_url() -> str:
+    settings = get_settings()
+    if settings.database_url:
+        return normalize_database_url(settings.database_url)
+    return f"sqlite:///{Path(settings.database_path).resolve()}"
+
+
+def normalize_database_url(url: str) -> str:
+    if url.startswith("postgres://"):
+        return "postgresql+psycopg://" + url.removeprefix("postgres://")
+    if url.startswith("postgresql://"):
+        return "postgresql+psycopg://" + url.removeprefix("postgresql://")
+    return url
+
+
+def get_engine() -> Engine:
+    global _engine, _schema_ready
+    if _engine is None:
+        url = database_url()
+        connect_args = {"check_same_thread": False} if url.startswith("sqlite") else {}
+        _engine = create_engine(url, pool_pre_ping=True, connect_args=connect_args)
+    if not _schema_ready:
+        metadata.create_all(_engine)
+        _schema_ready = True
+    return _engine
+
+
+def reset_engine_for_tests() -> None:
+    global _engine, _schema_ready
+    if _engine is not None:
+        _engine.dispose()
+        _engine = None
+    _schema_ready = False
 
 
 def init_db() -> None:
-    path = db_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with sqlite3.connect(path) as conn:
-        conn.executescript(SCHEMA)
-
-
-@contextmanager
-def connect() -> Iterator[sqlite3.Connection]:
-    init_db()
-    conn = sqlite3.connect(db_path())
-    conn.row_factory = sqlite3.Row
-    try:
-        yield conn
-        conn.commit()
-    finally:
-        conn.close()
-
-
-def row_to_dict(row: sqlite3.Row | None) -> dict | None:
-    return dict(row) if row is not None else None
+    metadata.create_all(get_engine())

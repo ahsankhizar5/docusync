@@ -46,7 +46,7 @@ def get_setup_status(settings: Settings) -> dict:
         "checks": checks,
         "deployment": {
             "frontend": "Vercel",
-            "backend": "Render",
+            "backend": "Vercel",
             "github_repo": "https://github.com/ahsankhizar5/docusync",
         },
     }
