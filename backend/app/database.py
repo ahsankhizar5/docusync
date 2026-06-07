@@ -1,4 +1,5 @@
 from pathlib import Path
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from sqlalchemy import (
     Column,
@@ -69,12 +70,28 @@ def database_url() -> str:
     return f"sqlite:///{Path(settings.database_path).resolve()}"
 
 
+def migration_database_url() -> str:
+    settings = get_settings()
+    if settings.direct_url:
+        return normalize_database_url(settings.direct_url)
+    return database_url()
+
+
 def normalize_database_url(url: str) -> str:
-    if url.startswith("postgres://"):
-        return "postgresql+psycopg://" + url.removeprefix("postgres://")
-    if url.startswith("postgresql://"):
-        return "postgresql+psycopg://" + url.removeprefix("postgresql://")
-    return url
+    cleaned = remove_prisma_only_query_params(url.strip().strip('"').strip("'"))
+    if cleaned.startswith("postgres://"):
+        return "postgresql+psycopg://" + cleaned.removeprefix("postgres://")
+    if cleaned.startswith("postgresql://"):
+        return "postgresql+psycopg://" + cleaned.removeprefix("postgresql://")
+    return cleaned
+
+
+def remove_prisma_only_query_params(url: str) -> str:
+    parts = urlsplit(url)
+    if not parts.query:
+        return url
+    query = [(key, value) for key, value in parse_qsl(parts.query, keep_blank_values=True) if key != "pgbouncer"]
+    return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(query), parts.fragment))
 
 
 def get_engine() -> Engine:
@@ -98,4 +115,10 @@ def reset_engine_for_tests() -> None:
 
 
 def init_db() -> None:
-    metadata.create_all(get_engine())
+    url = migration_database_url()
+    connect_args = {"check_same_thread": False} if url.startswith("sqlite") else {}
+    engine = create_engine(url, pool_pre_ping=True, connect_args=connect_args)
+    try:
+        metadata.create_all(engine)
+    finally:
+        engine.dispose()

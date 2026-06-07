@@ -16,14 +16,18 @@ If a database password or API key was pasted into chat, rotate it before deploym
 
 ## Supabase Database
 
-Set the Supabase connection string as `DATABASE_URL`.
+Set the Supabase connection strings as `DATABASE_URL` and `DIRECT_URL`.
 
-For Vercel, prefer the Supabase Session Pooler connection string if the direct database host is not IPv4-compatible.
+- `DATABASE_URL`: transaction-mode pooler, used by the running app.
+- `DIRECT_URL`: session-mode pooler, used by the initializer/migration script.
+
+The Prisma snippet from Supabase includes `pgbouncer=true`; that flag is Prisma-specific. DocuSync strips it before connecting through Python/SQLAlchemy.
 
 Local `backend/.env`:
 
 ```env
-DATABASE_URL=postgresql://postgres:<NEW-PASSWORD>@<SUPABASE-HOST>:5432/postgres
+DATABASE_URL=postgresql://postgres.keumpxbhvlumvwnhcgce:<NEW-PASSWORD>@aws-1-ap-northeast-2.pooler.supabase.com:6543/postgres?pgbouncer=true
+DIRECT_URL=postgresql://postgres.keumpxbhvlumvwnhcgce:<NEW-PASSWORD>@aws-1-ap-northeast-2.pooler.supabase.com:5432/postgres
 ```
 
 After setting `DATABASE_URL`, initialize tables:
@@ -46,6 +50,7 @@ Set backend environment variables:
 
 ```env
 DATABASE_URL=
+DIRECT_URL=
 GEMINI_API_KEY=
 NOTION_API_KEY=
 GITHUB_WEBHOOK_SECRET=
