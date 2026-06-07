@@ -100,8 +100,8 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
         <div className="content workspace-content">
           {error && <div className="notice danger-notice">{error}</div>}
 
-          <section className="review-hero">
-            <div>
+          <section className="review-hero review-workbench">
+            <div className="hero-copy">
               <div className="eyebrow">AI documentation draft</div>
               <h1>{job.pr_title}</h1>
               <p>{job.ai_summary || "DocuSync is preparing reviewer-ready documentation from the pull request evidence."}</p>
@@ -120,7 +120,7 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
             </div>
           </section>
 
-          <div className="meta">
+          <div className="meta compact-meta">
             <div className="meta-item">
               <div className="muted">Module</div>
               <strong>{job.mapped_module || "Pending"}</strong>
@@ -141,11 +141,21 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
 
           <div className="grid">
             <section className="panel">
-              <h2>Current Documentation</h2>
+              <div className="panel-head compact-head">
+                <div>
+                  <h2>Current Documentation</h2>
+                  <p className="muted">Source content from the mapped Notion page.</p>
+                </div>
+              </div>
               <div className="pre">{job.current_docs || "Documentation has not been retrieved yet."}</div>
             </section>
             <section className="panel">
-              <h2>Proposed Update</h2>
+              <div className="panel-head compact-head">
+                <div>
+                  <h2>Proposed Update</h2>
+                  <p className="muted">Reviewer-editable Markdown before publish.</p>
+                </div>
+              </div>
               <textarea className="textarea" value={draft} onChange={(event) => setDraft(event.target.value)} />
             </section>
           </div>

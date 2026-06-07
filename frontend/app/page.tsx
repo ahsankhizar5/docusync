@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { CheckCircle2, CircleAlert, FilePlus2, GitPullRequest, Loader2, RefreshCw, Trash2, Workflow } from "lucide-react";
+import { CheckCircle2, CircleAlert, FilePlus2, GitPullRequest, Loader2, RefreshCw, Server, Trash2, Workflow } from "lucide-react";
 import { useEffect, useState } from "react";
 import { StatusPill } from "../components/status-pill";
 import { clearFailedJobs, createDemoJob, getSetupStatus, Job, listJobs, SetupStatus } from "../lib/api";
@@ -107,28 +107,34 @@ export default function HomePage() {
 
         <section className="content workspace-content">
           <section className="review-hero queue-hero">
-            <div>
+            <div className="hero-copy">
               <div className="eyebrow">Production review command center</div>
               <h1>Review Queue</h1>
-              <p>Approve, edit, or reject AI-generated Notion documentation updates from merged GitHub pull requests.</p>
+              <p>Merged pull requests become controlled Notion documentation updates with review, audit, and publish gates.</p>
             </div>
             <div className="queue-stats">
-              <div><span>{jobs.length}</span><strong>Visible jobs</strong></div>
-              <div><span>{pendingCount}</span><strong>Awaiting review</strong></div>
+              <div><span>{jobs.length}</span><strong>Visible</strong></div>
+              <div><span>{pendingCount}</span><strong>Review</strong></div>
               <div><span>{publishedCount}</span><strong>Published</strong></div>
             </div>
           </section>
 
           {setup && (
-            <section className="panel setup-panel">
-              <div>
-                <strong>Production Setup</strong>
-                <div className="muted">
-                  Frontend: {setup.deployment.frontend} | Backend: {setup.deployment.backend} | Repo: {setup.deployment.github_repo}
+            <section className="panel setup-panel compact-setup">
+              <div className="setup-summary">
+                <div className="section-title">
+                  <Server size={17} />
+                  <div>
+                    <strong>Environment</strong>
+                    <span>Vercel services and repository links</span>
+                  </div>
                 </div>
-                <div className="muted setup-note">
-                  Live trigger: open a pull request, merge it, and GitHub will send the merged PR event. Creating a branch alone will not create a review job.
+                <div className="deployment-grid">
+                  <div><span>Frontend</span><strong>{setup.deployment.frontend}</strong></div>
+                  <div><span>Backend</span><strong>{setup.deployment.backend}</strong></div>
+                  <div><span>Repository</span><strong>{setup.deployment.github_repo}</strong></div>
                 </div>
+                <p className="setup-note">Live jobs are created after a pull request is merged.</p>
               </div>
               <div className="setup-grid">
                 {setup.checks.map((check) => (
@@ -148,7 +154,7 @@ export default function HomePage() {
             <div className="panel-head">
               <div>
                 <h2>Incoming Documentation Jobs</h2>
-                <p className="muted">{showFailed ? "Showing active and failed jobs." : "Failed jobs are hidden to keep the production queue clean."}</p>
+                <p className="muted">{showFailed ? "Active and failed jobs are visible." : "Failed jobs are hidden from the operating queue."}</p>
               </div>
               <div className="actions">
                 <button className="button danger" onClick={clearFailures} disabled={Boolean(busyAction)} title="Remove failed history">
@@ -168,9 +174,15 @@ export default function HomePage() {
 
             {!loading && jobs.length > 0 && (
               <div className="jobs">
+                <div className="job-row job-head">
+                  <span>Pull request</span>
+                  <span>Status</span>
+                  <span>Module</span>
+                  <span>Created</span>
+                </div>
                 {jobs.map((job) => (
                   <Link href={`/jobs/${job.id}`} className="job-row" key={job.id}>
-                    <div>
+                    <div className="job-title">
                       <strong>{job.pr_title}</strong>
                       <div className="muted">{job.repo_full_name} #{job.pr_number}</div>
                     </div>
