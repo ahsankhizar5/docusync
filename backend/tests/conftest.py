@@ -1,4 +1,8 @@
+import os
+
 import pytest
+
+os.environ["DATABASE_URL"] = ""
 
 from app.database import reset_engine_for_tests
 from app.settings import get_settings
