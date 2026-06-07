@@ -13,14 +13,9 @@ class ReviewRejectRequest(BaseModel):
 
 
 class DemoJobRequest(BaseModel):
-    repo_full_name: str = "demo/docusync-target"
-    pr_number: int = 1
-    pr_title: str = "Add password reset expiry policy"
-    pr_body: str = "Implements 15-minute reset token expiry and invalidates used tokens."
-    changed_files: list[str] = Field(default_factory=lambda: ["backend/app/services/auth.py"])
-    diff: str = """diff --git a/backend/app/services/auth.py b/backend/app/services/auth.py
-@@
-- token = create_reset_token(user)
-+ token = create_reset_token(user, expires_in_minutes=15)
-+ mark_reset_token_used(token)
-"""
+    repo_full_name: str | None = None
+    pr_number: int | None = None
+    pr_title: str | None = None
+    pr_body: str | None = None
+    changed_files: list[str] | None = None
+    diff: str | None = None

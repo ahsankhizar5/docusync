@@ -3,7 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .database import init_db
 from .models import DemoJobRequest, ReviewApproveRequest, ReviewRejectRequest
-from .services.github import PullRequestEvent, is_merged_pull_request, parse_pull_request_event, verify_signature
+from .services.demo import build_demo_event
+from .services.github import is_merged_pull_request, parse_pull_request_event, verify_signature
 from .services.jobs import approve_job, clear_failed_jobs, create_job, get_job, list_jobs, process_job, reject_job
 from .services.setup_status import get_setup_status
 from .settings import get_settings
@@ -55,19 +56,10 @@ async def github_webhook(
 
 @app.post("/api/demo/jobs")
 async def demo_job(request: DemoJobRequest, background_tasks: BackgroundTasks) -> dict:
-    event = PullRequestEvent(
-        repo_full_name=request.repo_full_name,
-        pr_number=request.pr_number,
-        pr_title=request.pr_title,
-        pr_body=request.pr_body,
-        pr_url=None,
-        merged_by="demo-user",
-        changed_files=request.changed_files,
-        diff=request.diff,
-    )
+    event = build_demo_event(request)
     job_id = create_job(event)
     background_tasks.add_task(process_job, job_id)
-    return {"accepted": True, "job_id": job_id}
+    return {"accepted": True, "job_id": job_id, "title": event.pr_title}
 
 
 @app.get("/api/jobs")
