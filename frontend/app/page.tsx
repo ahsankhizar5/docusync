@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { CheckCircle2, CircleAlert, FilePlus2, GitPullRequest, Loader2, RefreshCw, Server, Trash2, Workflow } from "lucide-react";
+import { FilePlus2, GitPullRequest, Loader2, RefreshCw, Sparkles, Trash2, Workflow } from "lucide-react";
 import { useEffect, useState } from "react";
+import { SystemIntegrity, SystemIntegritySkeleton } from "../components/system-integrity";
 import { StatusPill } from "../components/status-pill";
 import { clearFailedJobs, createDemoJob, getSetupStatus, Job, listJobs, SetupStatus } from "../lib/api";
 
@@ -72,7 +73,7 @@ export default function HomePage() {
   const publishedCount = jobs.filter((job) => job.status === "published").length;
 
   return (
-    <main className="shell app-layout">
+    <main className="shell app-layout premium-shell">
       <aside className="sidebar">
         <div className="brand side-brand">
           <span className="brand-mark"><Workflow size={20} /></span>
@@ -90,7 +91,7 @@ export default function HomePage() {
       <section className="workspace">
         <header className="workspace-topbar">
           <div className="topbar-title">
-            <span className="muted">Documentation automation</span>
+            <span className="muted">Enterprise documentation control plane</span>
             <strong>DocuSync Review</strong>
           </div>
           <div className="topbar-actions">
@@ -105,10 +106,10 @@ export default function HomePage() {
           </div>
         </header>
 
-        <section className="content workspace-content">
-          <section className="review-hero queue-hero">
+        <section className="content workspace-content dashboard-bento">
+          <section className="glass-card review-hero queue-hero bento-hero">
             <div className="hero-copy">
-              <div className="eyebrow">Production review command center</div>
+              <div className="eyebrow"><Sparkles size={13} /> Production review command center</div>
               <h1>Review Queue</h1>
               <p>Merged pull requests become controlled Notion documentation updates with review, audit, and publish gates.</p>
             </div>
@@ -119,38 +120,9 @@ export default function HomePage() {
             </div>
           </section>
 
-          {setup && (
-            <section className="panel setup-panel compact-setup">
-              <div className="setup-summary">
-                <div className="section-title">
-                  <Server size={17} />
-                  <div>
-                    <strong>Environment</strong>
-                    <span>Vercel services and repository links</span>
-                  </div>
-                </div>
-                <div className="deployment-grid">
-                  <div><span>Frontend</span><strong>{setup.deployment.frontend}</strong></div>
-                  <div><span>Backend</span><strong>{setup.deployment.backend}</strong></div>
-                  <div><span>Repository</span><strong>{setup.deployment.github_repo}</strong></div>
-                </div>
-                <p className="setup-note">Live jobs are created after a pull request is merged.</p>
-              </div>
-              <div className="setup-grid">
-                {setup.checks.map((check) => (
-                  <div className="setup-item" key={check.id}>
-                    {check.configured ? <CheckCircle2 size={18} className="ok-icon" /> : <CircleAlert size={18} className="warn-icon" />}
-                    <div>
-                      <strong>{check.label}</strong>
-                      <div className="muted">{check.detail}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
+          {setup ? <SystemIntegrity setup={setup} /> : <SystemIntegritySkeleton />}
 
-          <section className="panel queue-panel">
+          <section className="glass-card queue-panel bento-queue">
             <div className="panel-head">
               <div>
                 <h2>Incoming Documentation Jobs</h2>
