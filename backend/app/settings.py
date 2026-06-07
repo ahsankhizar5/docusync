@@ -28,6 +28,21 @@ class Settings(BaseSettings):
 
     @property
     def module_mapping_file(self) -> Path:
+        configured_path = Path(self.module_mapping_path)
+        candidates = [
+            configured_path,
+            Path.cwd() / configured_path,
+            Path(__file__).resolve().parents[1] / "config" / "module_mapping.json",
+            Path(__file__).resolve().parents[2] / "config" / "module_mapping.json",
+        ]
+        for candidate in candidates:
+            resolved = candidate.resolve()
+            if resolved.exists():
+                return resolved
+        return configured_path.resolve()
+
+    @property
+    def requested_module_mapping_file(self) -> Path:
         return Path(self.module_mapping_path).resolve()
 
     @property

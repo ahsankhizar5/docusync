@@ -3,6 +3,11 @@ from ..settings import Settings
 
 def get_setup_status(settings: Settings) -> dict:
     provider = settings.llm_provider.lower()
+    requested_mapping = settings.requested_module_mapping_file
+    effective_mapping = settings.module_mapping_file
+    mapping_detail = str(effective_mapping)
+    if requested_mapping != effective_mapping:
+        mapping_detail = f"{effective_mapping} (fallback for {requested_mapping})"
     provider_key_map = {
         "openai": bool(settings.openai_api_key),
         "gemini": bool(settings.gemini_api_key),
@@ -43,8 +48,8 @@ def get_setup_status(settings: Settings) -> dict:
         {
             "id": "module_mapping",
             "label": "Module mapping file",
-            "configured": settings.module_mapping_file.exists(),
-            "detail": str(settings.module_mapping_file),
+            "configured": effective_mapping.exists(),
+            "detail": mapping_detail,
         },
     ]
     return {
